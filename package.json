@@ -1,0 +1,20 @@
+{
+  "name": "grk",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/Czogi12/grk#readme",
+  "bugs": {
+    "url": "https://github.com/Czogi12/grk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Czogi12/grk.git"
+  },
+  "license": "ISC",
+  "author": "Maciej Nowakowski",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
