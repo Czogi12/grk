@@ -88,11 +88,22 @@ class MP3 {
 
     #drawLine() {
         window.loadPixels();
-        const from = this.#points.get("from");
-        const to = this.#points.get("to");
+        let from = this.#points.get("from");
+        let to = this.#points.get("to");
 
-        const dX =(to.x - from.x);
-        const dY = (to.y - from.y);
+        let dX = Math.abs(to.x - from.x);
+        let dY = Math.abs(to.y - from.y);
+
+        const horizontalLine = dX >= dY;
+
+        if (!horizontalLine) {
+            from = from.swapped;
+            to = to.swapped;
+            dX ^= dY;
+            dY ^= dX;
+            dX ^= dY;
+        }
+
 
         // const a = dY / (dX === 0 ? 0.0000001 : dX);
         // const b = from.y - a * from.x;
@@ -102,13 +113,16 @@ class MP3 {
         const dDecrement = 2 * dY;
 
         const xDirection = from.x < to.x ? 1 : -1;
-        // const yDirection = from.y < to.y ? 1 : -1;
-        for (let x = from.x, d = dInitial, y = from.y; x !== to.x; x += xDirection) {
-            this.#setPixel(x, y, 0);
+        const yDirection = from.y < to.y ? 1 : -1;
+        for (let x = from.x, d = dInitial, y =from.y; x !== to.x; x += xDirection) {
+            if (horizontalLine)
+                this.#setPixel(x, y , 0);
+            else 
+                this.#setPixel(y, x , 0);
             if (d < 0) d += dDecrement;
             else {
                 d += dIncrement;
-                y += 1;
+                y += yDirection;
             }
         }
         window.updatePixels()
@@ -189,6 +203,10 @@ class Point {
 
     get y() {
         return this.#y;
+    }
+
+    get swapped() {
+        return new Point(this.#y, this.#x);
     }
 }
 
