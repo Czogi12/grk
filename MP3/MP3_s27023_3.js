@@ -75,8 +75,8 @@ class MP3 {
         const from = this.#points.get("from");
         const to = this.#points.get("to");
 
-        const dX = (from.x - to.x);
-        const dY = (from.y - to.y);
+        const dX = (to.x - from.x);
+        const dY = (to.y - from.y);
 
         const a = dY / (dX === 0 ? 0.0000001 : dX);
         const b = from.y - a * from.x;

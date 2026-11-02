@@ -16,6 +16,8 @@ class MP3 {
 
     #listeners
 
+    #alt;
+
     constructor(canvas) {
         this.#canvas = canvas;
         this.#points = new Map([
@@ -24,6 +26,7 @@ class MP3 {
         ])
         this.#listeners = new Map();
         this.#mouseDown = false;
+        this.#alt = true;
         this.#initListeners();
     }
 
@@ -83,26 +86,24 @@ class MP3 {
 
         const direction = from.x < to.x ? 1 : -1;
 
-        for (let x = from.x; Math.abs(x - to.x) !== 0; x += direction) {
-            const y = ~~(a*x + b);
-            this.#setPixel(x, y, 0);
-
-            const nextX = x + direction;
-            const nextY = ~~(a*nextX + b);
-            if (Math.abs(y - nextY) < 1) continue;
-            const yDirection = y < nextY ? 1 : -1;
-            for (let fillY = y; Math.abs(fillY - nextY) !== 0; fillY += yDirection) {
-                this.#setPixel(x, fillY, 0);
+        for (let y = 0; y < this.#canvas.height; y++) {
+            for (let x = 0; x < this.#canvas.width; x++) {
+                let v = a* (x-from.x) - (y-from.y);
+                if (this.#alt) v *= 2 * dX;
+                this.#setPixel(x, y, -v, v, 0)
             }
         }
+
         window.updatePixels()
     }
 
-    #setPixel(x,y,c) {
+    #setPixel(x,y,r,g,b) {
+        if (typeof g === "undefined") g = r;
+        if (typeof b === "undefined") b = r;
         const idx=(y*this.#canvas.width+x)*4;
-        window.pixels[idx]=c;
-        window.pixels[idx+1]=c;
-        window.pixels[idx+2]=c;
+        window.pixels[idx]=r;
+        window.pixels[idx+1]=g;
+        window.pixels[idx+2]=b;
         window.pixels[idx+3]=255;
     }
 }
