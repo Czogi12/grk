@@ -153,7 +153,8 @@ class Point {
 function setup() {
     const WIDTH = 512;
     const HEIGHT = 512;
-    const canvas = document.querySelector(`canvas[width='${WIDTH}'][height='${HEIGHT}']`) || createCanvas(512,512).elt;
+    window.pixelDensity(1);
+    const canvas = document.querySelector(`canvas[width='${WIDTH}'][height='${HEIGHT}']`) || createCanvas(WIDTH,HEIGHT).elt;
     if (!canvas) {
         throw new Error("Couldn't find or create canvas.")
     }
