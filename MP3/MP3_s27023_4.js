@@ -16,8 +16,6 @@ class MP3 {
 
     #listeners
 
-    #alt;
-
     constructor(canvas) {
         this.#canvas = canvas;
         this.#points = new Map([
@@ -26,7 +24,6 @@ class MP3 {
         ])
         this.#listeners = new Map();
         this.#mouseDown = false;
-        this.#alt = true;
         this.#initListeners();
     }
 
@@ -78,22 +75,25 @@ class MP3 {
         const from = this.#points.get("from");
         const to = this.#points.get("to");
 
-        const dX = (from.x - to.x);
-        const dY = (from.y - to.y);
+        const dX = (to.x - from.x);
+        const dY = (to.y - from.y);
 
         const a = dY / (dX === 0 ? 0.0000001 : dX);
         const b = from.y - a * from.x;
 
-        const direction = from.x < to.x ? 1 : -1;
+        const dInitial = 2 * dY - dX;
+        const dIncrement = 2 * dY - 2 * dX;
+        const dDecrement = 2 * dY;
 
-        for (let y = 0; y < this.#canvas.height; y++) {
-            for (let x = 0; x < this.#canvas.width; x++) {
-                let v = a* (x-from.x) - (y-from.y);
-                if (this.#alt) v *= 2 * dX;
-                this.#setPixel(x, y, -v, v, 0)
+        const direction = from.x < to.x ? 1 : -1;
+        for (let x = from.x, d = dInitial, y = from.y; x !== to.x; x += direction) {
+            this.#setPixel(x, y, 0);
+            if (d < 0) d += dDecrement;
+            else {
+                d += dIncrement;
+                y++;
             }
         }
-
         window.updatePixels()
     }
 
