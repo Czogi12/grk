@@ -192,11 +192,21 @@ class CanvasImage {
     }
 
     /**
+     * @param {Vector} vector
+     * @param {Color} color
+     */
+    drawVector(vector, color) {
+        this.setPixel(vector.x, vector.y, color)
+    }
+
+    /**
      * @param {number} x
      * @param {number} y
      * @param {Color} color
      */
     setPixel(x, y, color) {
+        x = Math.floor(x);
+        y = Math.floor(y);
         const i = (y * this.width + x) * 4;
         const d = this.#data.data;
         d[i] = color.red;
@@ -210,7 +220,7 @@ class CanvasImage {
      */
     fill(color) {
         const d = this.#data.data;
-        const { red, green, blue, alpha } = color; // read getters once, not per pixel
+        const { red, green, blue, alpha } = color;
         for (let i = 0; i < d.length; i += 4) {
             d[i] = red;
             d[i + 1] = green;
@@ -219,9 +229,58 @@ class CanvasImage {
         }
     }
 
+    /**
+     * @param {Vector} start
+     * @param {Vector} end
+     * @param {Color} color
+     */
+    drawLine(start, end, color) {
+    let x0 = Math.floor(start.x), y0 = Math.floor(start.y);
+    const x1 = Math.floor(end.x), y1 = Math.floor(end.y);
+
+    const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+
+    while (true) {
+        this.setPixel(x0, y0, color);
+        if (x0 === x1 && y0 === y1) break;
+        const e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+}
+
     // get pixels() {
     //     return this.#pixels;
     // }
+}
+
+class Vector {
+    /**
+     * @type {number[]}
+     */
+    #array
+
+    /**
+     * @param {number} x
+     * @param {number} y
+     */
+    constructor(x, y) {
+        this.#array = [x, y, 1];
+    }
+
+    get x() {
+        return this.#array[0];
+    }
+
+    get y() {
+        return this.#array[1];
+    }
+}
+
+class Controls {
+    static mouseHeld = false;
 }
 
 class Canvas {
@@ -235,6 +294,16 @@ class Canvas {
     #ctx;
 
     /**
+     * @type {(function(MouseEvent): void)[]}
+     */
+    #mouseDraggedListeners = [];
+
+    /**
+     * @type {(function(MouseEvent): void)[]}
+     */
+    #mouseUpListeners = [];
+
+    /**
      * @param {HTMLCanvasElement} element
      */
     constructor(element) {
@@ -242,6 +311,44 @@ class Canvas {
         const ctx = element.getContext("2d");
         if (!ctx) throw new Error("Error getting context 2d.")
         this.#ctx = ctx;
+        this.#initListeners();
+    }
+
+    #initListeners() {
+        this.#element.addEventListener("mousedown", this.#onMouseDown.bind(this));
+        window.addEventListener("mouseup", this.#onMouseUp.bind(this));
+        this.#element.addEventListener("mousemove", this.#onMouseMove.bind(this));
+    }
+
+    /**
+     * 
+     * @param {MouseEvent} event 
+     */
+    #onMouseDown(event) {
+        const { button } = event
+        if (button) return;
+        Controls.mouseHeld = true;
+    }
+
+    /**
+     * 
+     * @param {MouseEvent} event 
+     */
+    #onMouseUp(event) {
+        this.#mouseUpListeners.forEach(listener => listener(event));
+        const { button } = event
+        if (button) return;
+        Controls.mouseHeld = false;
+    }
+
+    /**
+     * 
+     * @param {MouseEvent} event 
+     */
+    #onMouseMove(event) {
+        if (Controls.mouseHeld) {
+            this.#mouseDraggedListeners.forEach(listener => listener(event));
+        }
     }
 
     /**
@@ -269,6 +376,23 @@ class Canvas {
         // console.timeEnd("drawingImage");
     }
 
+    /**
+     * 
+     * @param {function(MouseEvent): void} listener 
+     */
+    addMouseDraggedListener(listener) {
+        this.#mouseDraggedListeners.push(listener);
+    }
+
+
+    /**
+     * 
+     * @param {function(MouseEvent): void} listener 
+     */
+    addMouseUpListener(listener) {
+        this.#mouseUpListeners.push(listener);
+    }
+
     set width(width) {
         this.#element.width = width;
     }
@@ -294,7 +418,6 @@ class MP4 {
 
     #imageA = new CanvasImage(512, 512, new Color(240, 250, 240));
     #imageB = new CanvasImage(512, 512, new Color(240, 240, 250));
-    #spaceHeld = false;
 
     /**
      * @param {number} width 
@@ -311,21 +434,25 @@ class MP4 {
         this.#canvas.height = height;
         this.#canvas.background(255);
 
-        document.addEventListener("keydown", ({key}) => {
-            console.log(key)
-            if (key === " ") this.#spaceHeld = true;
-        })
-
-        document.addEventListener("keyup", ({key}) => {
-            if (key === " ") this.#spaceHeld = false;
+        /**
+         * @type {Vector | null}
+         */
+        let last = null;
+        this.#canvas.addMouseDraggedListener((e)=> {
+            const current = new Vector(e.offsetX, e.offsetY);
+            if (!last) this.#imageA.drawVector(current, new Color(0, 0, 0));
+            else this.#imageA.drawLine(current, last, new Color(0, 0, 0));
+            last = current;
+        });
+        this.#canvas.addMouseUpListener((e)=> {
+            last = null;
         })
 
         this.#requestDraw();
     }
 
     #draw() {
-        console.log(this)
-        this.#canvas.drawImage(this.#spaceHeld ? this.#imageB : this.#imageA);
+        this.#canvas.drawImage(this.#imageA);
         this.#requestDraw();
     }
 
