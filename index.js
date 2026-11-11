@@ -5,6 +5,7 @@ import path from "path"
 const server = http.createServer(async (req, res) => {
     try {
         const { url } = req;
+        console.log(url)
         switch (url.slice(1)) {
             case "":
                 const html = fs.readFileSync(path.join(import.meta.dirname, "public", "index.html"));
@@ -19,6 +20,7 @@ const server = http.createServer(async (req, res) => {
                 if (step) {
                     const [, mp, nr] = step;
                     const script = `/${mp}/${mp}_s27023_${nr}.js`;
+                    console.log(script)
                     if (fs.existsSync(path.join(import.meta.dirname, script))) {
                         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
                         res.end(`<!DOCTYPE html>
