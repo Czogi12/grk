@@ -148,6 +148,34 @@ class Pixel {
     }
 }
 
+class ImageHistoryPoint {
+    /**
+     * @type {Vector2D}
+     */
+    #vector;
+    /**
+     * @type {Vector2D | null}
+     */
+    #last = null
+
+    /**
+     * @param {Vector2D} vector
+     * @param {Vector2D | null} last
+     */
+    constructor(vector, last = null) {
+        this.#vector = vector;
+        this.#last = last;
+    }
+
+    get vector() {
+        return this.#vector;
+    }
+
+    get last() {
+        return this.#last;
+    }
+}
+
 class CanvasImage {
     // /**
     //  * @type {Pixel[]}
@@ -163,6 +191,11 @@ class CanvasImage {
      * @type {Vector2D | null}
      */
     #last = null;
+
+    /**
+     * @type {ImageHistoryPoint[]}
+     */
+    #history = [];
 
     /**
      * 
@@ -203,9 +236,12 @@ class CanvasImage {
     drawVector(vector, color) {
         if (this.#last) {
             this.#drawLine(this.#last, vector, color)
+            this.#history.push(new ImageHistoryPoint(vector, this.#last));
         } else {
             this.setPixel(vector.x, vector.y, color)
+            this.#history.push(new ImageHistoryPoint(vector));
         }
+        
     }
 
     /**
@@ -245,6 +281,7 @@ class CanvasImage {
      * @param {Color} color
      */
     #drawLine(start, end, color) {
+
     let x0 = Math.floor(start.x), y0 = Math.floor(start.y);
     const x1 = Math.floor(end.x), y1 = Math.floor(end.y);
 
