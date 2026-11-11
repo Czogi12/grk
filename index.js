@@ -15,6 +15,30 @@ const server = http.createServer(async (req, res) => {
                 console.log("entering MP2")
                 break;
             default:
+                const step = url.match(/^\/(MP\d+)\/([\d-]+)$/);
+                if (step) {
+                    const [, mp, nr] = step;
+                    const script = `/${mp}/${mp}_s27023_${nr}.js`;
+                    if (fs.existsSync(path.join(import.meta.dirname, script))) {
+                        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+                        res.end(`<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>${mp} ${nr}</title>
+    <script type="module" src="${script}"></script>
+</head>
+<body></body>
+</html>`);
+                        return;
+                    }
+                }
+                if (/^\/MP\d+\/[\w-]+\.js$/.test(url)) {
+                    const js = fs.readFileSync(path.join(import.meta.dirname, url));
+                    res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
+                    res.end(js);
+                    return;
+                }
                 if (url.endsWith(".css")) {
                     const style = fs.readFileSync(path.join(import.meta.dirname, "public", url));
                     if (style) {
