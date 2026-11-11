@@ -256,26 +256,206 @@ class CanvasImage {
     // }
 }
 
-class Vector {
+class Matrix {
+    /**
+     * @type {number}
+     */
+    #width;
+    /**
+     * @type {number}
+     */
+    #height;
     /**
      * @type {number[]}
      */
-    #array
+    #data;
+
+    /**
+     * @param {number} width
+     * @param {number} height
+     * @param {number[] | undefined} data
+     */
+    constructor(width, height, data = new Array(width * height).fill(0)) {
+        if (data.length !== width * height) throw new Error("Wrong data length");
+        this.#width = width;
+        this.#height = height;
+        this.#data = data;
+    }
+
+    /**
+     * @param {number} x
+     * @param {number} y
+     */
+    #index(x, y) {
+        if (x < 0 || x >= this.#width) throw new Error("X is out of bounds");
+        if (y < 0 || y >= this.#height) throw new Error("Y is out of bounds");
+        return this.#width * y + x;
+    }
+
+    /**
+     * @param {number} x
+     * @param {number} y
+     */
+    get(x, y) {
+        const index = this.#index(x, y);
+        return this.#data[index]
+    }
+
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @param {number} value
+     */
+    set(x, y, value) {
+        const index = this.#index(x, y);
+        this.#data[index] = value
+    }
+
+    /**
+     * @param {Matrix} other
+     */
+    multiply(other) {
+        if (this.#width !== other.height) {
+            console.error(this, other)
+             throw new Error("Dimension mismatch");
+        }
+        const result = new Matrix(other.width, this.#height);
+        for (let y = 0; y < this.#height; y++) {
+            for (let x = 0; x < other.width; x++) {
+                let sum = 0;
+                for (let i = 0; i < this.#width; i++) sum += this.get(i, y) * other.get(x, i);
+                result.set(x, y, sum);
+            }
+        }
+        return result;
+    }
+
+    get width() {
+        return this.#width;
+    }
+
+    get height() {
+        return this.#height;
+    }
+}
+
+class Vector extends Matrix {
+    /**
+     * 
+     * @param {Matrix} matrix 
+     */
+    static fromMatrix(matrix) {
+        if (matrix.width !== 1 || matrix.height !== 3) throw new Error("Matrix is not a 2D vector");
+        if (matrix.get(0, 2) !== 1) throw new Error("Matrix is invalid")
+        return new Vector(matrix.get(0, 0), matrix.get(0, 1))
+    }
 
     /**
      * @param {number} x
      * @param {number} y
      */
     constructor(x, y) {
-        this.#array = [x, y, 1];
+        super(1, 3, [x, y, 1]);
     }
 
     get x() {
-        return this.#array[0];
+        return this.get(0, 0);
     }
 
     get y() {
-        return this.#array[1];
+        return this.get(0, 1);
+    }
+
+    /**
+     * 
+     * @param {Matrix} other 
+     */
+    transform(other) {
+        return Vector.fromMatrix(other.multiply(this))
+    }
+}
+
+class IdentityMatrix extends Matrix {
+    /**
+     * @param {number} dimention
+     */
+    constructor(dimention) {
+        super(dimention, dimention)
+        for(let x = 0, y = 0; x < dimention; x++, y++) {
+            this.set(x, y, 1);
+        }        
+    }
+}
+
+class ShiftMatrix extends IdentityMatrix {
+    /**
+     * @param {number} dimention
+     * @param {number[] | undefined} shifts
+     */
+    constructor(dimention, shifts = new Array(dimention - 1).fill(0)) {
+        if (shifts.length + 1 !== dimention) throw new Error("Shifts length is invalid")
+        super(dimention)
+        for (let y = 0; y < dimention - 1; y++) this.set(this.width - 1, y, shifts[y])
+    }
+}
+
+class ShiftMatrix2D extends ShiftMatrix {
+    /**
+     * @param {number} shiftX
+     * @param {number} shiftY
+     */
+    constructor(shiftX, shiftY) {
+        super(3, [shiftX, shiftY])
+    }
+}
+
+class ScaleMatrix extends IdentityMatrix {
+    /**
+     * @param {number} dimention
+     * @param {number[] | undefined} scales
+     */
+    constructor(dimention, scales = new Array(dimention - 1).fill(0)) {
+        if (scales.length + 1 !== dimention) throw new Error("Scales length is invalid")
+        super(dimention)
+        for (let y = 0; y < dimention - 1; y++) this.set(y, y, scales[y])
+    }
+}
+
+class ScaleMatrix2D extends ScaleMatrix {
+    /**
+     * @param {number} scaleX
+     * @param {number} scaleY
+     */
+    constructor(scaleX, scaleY) {
+        super(3, [scaleX, scaleY])
+    }
+}
+
+class RotationMatrix2D extends IdentityMatrix {
+    /**
+     * @param {number} rotation Degrees
+     */
+    constructor(rotation = 0) {
+        super(3)
+        const radians = (rotation / 180) * Math.PI;
+        const cos = Math.cos(radians);
+        const sin = Math.sin(radians);
+        this.set(0, 0, cos);
+        this.set(1, 0, -sin);
+        this.set(0, 1, sin);
+        this.set(1, 1, cos);
+    }
+}
+
+class ShearMatrix2D extends IdentityMatrix {
+    /**
+     * @param {number} shearX
+     * @param {number} shearY
+     */
+    constructor(shearX, shearY) {
+        super(3)
+        this.set(1, 0, shearX);
+        this.set(0, 1, shearY);
     }
 }
 
@@ -434,12 +614,20 @@ class MP4 {
         this.#canvas.height = height;
         this.#canvas.background(255);
 
+
+        const shiftMatrix = new ShiftMatrix2D(50, 50);
+        console.log(new IdentityMatrix(3));
+        console.log(new ShiftMatrix2D(50, 50));
+        console.log(new ScaleMatrix2D(2, 2));
+        console.log(new RotationMatrix2D(30));
+        console.log(new ShearMatrix2D(10, 10));
         /**
          * @type {Vector | null}
          */
         let last = null;
         this.#canvas.addMouseDraggedListener((e)=> {
-            const current = new Vector(e.offsetX, e.offsetY);
+            let current = new Vector(e.offsetX, e.offsetY);
+            current = current.transform(shiftMatrix);
             if (!last) this.#imageA.drawVector(current, new Color(0, 0, 0));
             else this.#imageA.drawLine(current, last, new Color(0, 0, 0));
             last = current;
