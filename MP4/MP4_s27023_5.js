@@ -47,7 +47,7 @@ class Color {
      * @param {number | undefined} a
      */
     set(r, g, b, a = -1) {
-        if(a !== -1) this.alpha = a;
+        if (a !== -1) this.alpha = a;
         this.red = r;
         this.blue = b;
         this.green = g;
@@ -130,9 +130,9 @@ class Pixel {
     #position
 
     /**
-     * 
-     * @param {Position} position 
-     * @param {Color} color 
+     *
+     * @param {Position} position
+     * @param {Color} color
      */
     constructor(position, color) {
         this.#position = position;
@@ -175,8 +175,8 @@ class ImageHistoryPoint {
     }
 
     /**
-     * 
-     * @param {IdentityMatrix} transformMatrix 
+     *
+     * @param {IdentityMatrix} transformMatrix
      * @returns {ImageHistoryPoint}
      */
     transform(transformMatrix) {
@@ -192,7 +192,7 @@ class ImageHistoryPoint {
     get vector() {
         return this.#vector;
     }
-    
+
     get color() {
         return this.#color
     }
@@ -229,8 +229,8 @@ class ImageHistory {
     }
 
     /**
-     * 
-     * @param {IdentityMatrix} transformMatrix 
+     *
+     * @param {IdentityMatrix} transformMatrix
      * @returns {ImageHistory}
      */
     transform(transformMatrix) {
@@ -270,10 +270,10 @@ class CanvasImage {
     #bgColor;
 
     /**
-     * 
-     * @param {number} width 
-     * @param {number} height 
-     * @param {Color | undefined } backgroundColor 
+     *
+     * @param {number} width
+     * @param {number} height
+     * @param {Color | undefined } backgroundColor
      */
     constructor(width, height, backgroundColor = new Color(255, 255, 255)) {
         this.#data = new ImageData(width, height);
@@ -348,7 +348,7 @@ class CanvasImage {
      */
     fill(color) {
         const d = this.#data.data;
-        const { red, green, blue, alpha } = color;
+        const {red, green, blue, alpha} = color;
         for (let i = 0; i < d.length; i += 4) {
             d[i] = red;
             d[i + 1] = green;
@@ -364,19 +364,25 @@ class CanvasImage {
      */
     #drawLine(start, end, color) {
 
-    let x0 = Math.floor(start.x), y0 = Math.floor(start.y);
-    const x1 = Math.floor(end.x), y1 = Math.floor(end.y);
+        let x0 = Math.floor(start.x), y0 = Math.floor(start.y);
+        const x1 = Math.floor(end.x), y1 = Math.floor(end.y);
 
-    const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-    let err = dx + dy;
+        const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        let err = dx + dy;
 
         while (true) {
             this.#setPixel(x0, y0, color);
             if (x0 === x1 && y0 === y1) break;
             const e2 = 2 * err;
-            if (e2 >= dy) { err += dy; x0 += sx; }
-            if (e2 <= dx) { err += dx; y0 += sy; }
+            if (e2 >= dy) {
+                err += dy;
+                x0 += sx;
+            }
+            if (e2 <= dx) {
+                err += dx;
+                y0 += sy;
+            }
         }
     }
 
@@ -463,7 +469,7 @@ class Matrix {
     multiply(other) {
         if (this.#width !== other.height) {
             console.error(this, other)
-             throw new Error("Dimension mismatch");
+            throw new Error("Dimension mismatch");
         }
         const result = new Matrix(other.width, this.#height);
         for (let y = 0; y < this.#height; y++) {
@@ -474,6 +480,29 @@ class Matrix {
             }
         }
         return result;
+    }
+
+    renderMatrix() {
+        const table = document.createElement("table");
+        for (let y = 0; y < this.#height; y++) {
+            const row = document.createElement("tr");
+            for (let x = 0; x < this.#width; x++) {
+                const tableData = document.createElement("td");
+                tableData.textContent = this.get(x, y).toString();
+                row.append(tableData);
+            }
+            table.appendChild(row);
+        }
+        return table;
+    }
+
+    /**
+     *
+     * @param {function():void} changed
+     * @returns {Element}
+     */
+    renderArguments(changed) {
+        throw new Error("Abstract method is not implemented.");
     }
 
     get width() {
@@ -487,8 +516,8 @@ class Matrix {
 
 class Vector2D extends Matrix {
     /**
-     * 
-     * @param {Matrix} matrix 
+     *
+     * @param {Matrix} matrix
      */
     static fromMatrix(matrix) {
         if (matrix.width !== 1 || matrix.height !== 3) throw new Error("Matrix is not a 2D vector");
@@ -513,8 +542,8 @@ class Vector2D extends Matrix {
     }
 
     /**
-     * 
-     * @param {Matrix} other 
+     *
+     * @param {Matrix} other
      */
     transform(other) {
         return Vector2D.fromMatrix(other.multiply(this))
@@ -527,9 +556,13 @@ class IdentityMatrix extends Matrix {
      */
     constructor(dimention) {
         super(dimention, dimention)
-        for(let x = 0, y = 0; x < dimention; x++, y++) {
+        for (let x = 0, y = 0; x < dimention; x++, y++) {
             this.set(x, y, 1);
-        }        
+        }
+    }
+
+    renderArguments(changed) {
+        return document.createElement("div")
     }
 }
 
@@ -542,6 +575,27 @@ class ShiftMatrix extends IdentityMatrix {
         if (shifts.length + 1 !== dimention) throw new Error("Shifts length is invalid")
         super(dimention)
         for (let y = 0; y < dimention - 1; y++) this.set(this.width - 1, y, shifts[y])
+    }
+
+
+    renderArguments(changed) {
+        const xLabel = document.createElement("label");
+        xLabel.textContent = "X"
+        const xInput = UI.createNumberInput((value) => {
+            this.set(this.width - 1, 0, value);
+            changed();
+        }, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, this.get(this.width - 1, 0));
+        xLabel.append(xInput);
+        const yLabel = document.createElement("label");
+        yLabel.textContent = "Y"
+        const yInput = UI.createNumberInput((value) => {
+            this.set(this.width - 1, 1, value);
+            changed();
+        }, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, this.get(this.width - 1, 1));
+        yLabel.append(yInput);
+        const container = document.createElement("div")
+        container.append(xLabel, yLabel);
+        return container;
     }
 }
 
@@ -575,21 +629,65 @@ class ScaleMatrix2D extends ScaleMatrix {
     constructor(scaleX, scaleY) {
         super(3, [scaleX, scaleY])
     }
+
+    renderArguments(changed) {
+        const xLabel = document.createElement("label");
+        xLabel.textContent = "X"
+        const xInput = UI.createNumberInput((value) => {
+            this.set(0, this.width - 1, value);
+            changed();
+        }, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, this.get(0, 0));
+        xLabel.append(xInput);
+        const yLabel = document.createElement("label");
+        yLabel.textContent = "Y"
+        const yInput = UI.createNumberInput((value) => {
+            this.set(0, this.width - 1, value);
+            changed();
+        }, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, this.get(1, 1));
+        yLabel.append(yInput);
+        const container = document.createElement("div")
+        container.append(xLabel, yLabel);
+        return container;
+    }
 }
 
 class RotationMatrix2D extends IdentityMatrix {
+    static degToRad(deg) {
+        return (deg / 180) * Math.PI;
+    }
+
     /**
      * @param {number} rotation Degrees
      */
     constructor(rotation = 0) {
         super(3)
-        const radians = (rotation / 180) * Math.PI;
+        const radians = RotationMatrix2D.degToRad(radians);
         const cos = Math.cos(radians);
         const sin = Math.sin(radians);
         this.set(0, 0, cos);
         this.set(1, 0, -sin);
         this.set(0, 1, sin);
         this.set(1, 1, cos);
+    }
+
+    renderArguments(changed) {
+        const xLabel = document.createElement("label");
+        xLabel.textContent = "Stopnie"
+        const xInput = UI.createNumberInput((value) => {
+            const radians = RotationMatrix2D.degToRad(value);
+            const cos = Math.cos(radians);
+            const sin = Math.sin(radians);
+
+            this.set(0, 0, cos);
+            this.set(1, 0, -sin);
+            this.set(0, 1, sin);
+            this.set(1, 1, cos);
+            changed();
+        }, 0, 359, this.get(0, this.width - 1));
+        xLabel.append(xInput);
+
+        container.append(xLabel);
+        return container;
     }
 }
 
@@ -602,6 +700,26 @@ class ShearMatrix2D extends IdentityMatrix {
         super(3)
         this.set(1, 0, shearX);
         this.set(0, 1, shearY);
+    }
+
+    renderArguments(changed) {
+        const xLabel = document.createElement("label");
+        xLabel.textContent = "X"
+        const xInput = UI.createNumberInput((value) => {
+            this.set(1, 0, value);
+            changed();
+        }, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, this.get(0, this.width - 1));
+        xLabel.append(xInput);
+        const yLabel = document.createElement("label");
+        yLabel.textContent = "Y"
+        const yInput = UI.createNumberInput((value) => {
+            this.set(0, 1, value);
+            changed();
+        }, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, this.get(1, this.width - 1));
+        yLabel.append(yInput);
+        const container = document.createElement("div")
+        container.append(xLabel, yLabel);
+        return container;
     }
 }
 
@@ -619,18 +737,20 @@ class TransformationList {
     #dimention;
 
     /**
-     * 
-     * @param {number} dimention 
+     *
+     * @param {number} dimention
      */
     constructor(dimention) {
         this.#dimention = dimention;
-        this.#list.push(new IdentityMatrix(dimention));
+        // TODO: revert to Identity
+        // this.#list.push(new IdentityMatrix(dimention));
+        this.#list.push(new ShiftMatrix2D(100, 0), new ScaleMatrix2D(100, 0));
         this.#transformation = this.#list[0];
     }
 
     /**
-     * 
-     * @param {IdentityMatrix} transformationMatrix 
+     *
+     * @param {IdentityMatrix} transformationMatrix
      */
     addTransformation(transformationMatrix) {
         if (transformationMatrix.width !== this.#dimention || transformationMatrix.height !== this.#dimention) {
@@ -641,8 +761,8 @@ class TransformationList {
     }
 
     /**
-     * 
-     * @param {number} index 
+     *
+     * @param {number} index
      */
     removeTransformation(index) {
         this.#validateTransformationIndex(index);
@@ -683,6 +803,10 @@ class TransformationList {
 
     get transformation() {
         return this.#transformation;
+    }
+
+    get list() {
+        return this.#list;
     }
 }
 
@@ -731,29 +855,29 @@ class Canvas {
     }
 
     /**
-     * 
-     * @param {MouseEvent} event 
+     *
+     * @param {MouseEvent} event
      */
     #onMouseDown(event) {
-        const { button } = event
+        const {button} = event
         if (button) return;
         Controls.mouseHeld = true;
     }
 
     /**
-     * 
-     * @param {MouseEvent} event 
+     *
+     * @param {MouseEvent} event
      */
     #onMouseUp(event) {
         this.#mouseUpListeners.forEach(listener => listener(event));
-        const { button } = event
+        const {button} = event
         if (button) return;
         Controls.mouseHeld = false;
     }
 
     /**
-     * 
-     * @param {MouseEvent} event 
+     *
+     * @param {MouseEvent} event
      */
     #onMouseMove(event) {
         if (Controls.mouseHeld) {
@@ -762,26 +886,26 @@ class Canvas {
     }
 
     /**
-     * 
-     * @param {KeyboardEvent} event 
+     *
+     * @param {KeyboardEvent} event
      */
     #onKeyDown(event) {
-        const { key } = event
+        const {key} = event
         if (key === " ") Controls.spaceHeld = true;
     }
 
     /**
-     * 
-     * @param {KeyboardEvent} event 
+     *
+     * @param {KeyboardEvent} event
      */
     #onKeyUp(event) {
-        const { key } = event
+        const {key} = event
         if (key === " ") Controls.spaceHeld = false;
     }
 
     /**
-     * 
-     * @param {number} value 
+     *
+     * @param {number} value
      */
     background(value) {
         // https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillStyle
@@ -790,8 +914,8 @@ class Canvas {
     }
 
     /**
-     * 
-     * @param {CanvasImage} image 
+     *
+     * @param {CanvasImage} image
      */
     drawImage(image) {
         // console.time("drawingImage");
@@ -805,8 +929,8 @@ class Canvas {
     }
 
     /**
-     * 
-     * @param {function(MouseEvent): void} listener 
+     *
+     * @param {function(MouseEvent): void} listener
      */
     addMouseDraggedListener(listener) {
         this.#mouseDraggedListeners.push(listener);
@@ -814,8 +938,8 @@ class Canvas {
 
 
     /**
-     * 
-     * @param {function(MouseEvent): void} listener 
+     *
+     * @param {function(MouseEvent): void} listener
      */
     addMouseUpListener(listener) {
         this.#mouseUpListeners.push(listener);
@@ -828,7 +952,7 @@ class Canvas {
     get width() {
         return this.#element.width;
     }
-    
+
     set height(height) {
         this.#element.height = height;
     }
@@ -839,6 +963,9 @@ class Canvas {
 }
 
 class UI {
+    /**
+     * @type {TransformationList}
+     */
     #transformationList;
 
     /**
@@ -863,10 +990,17 @@ class UI {
     #TransformationConstructor = IdentityMatrix
 
     /**
-     * @param {TransformationList} transformationList
+     * @type {function():void}
      */
-    constructor(transformationList) {
+    #redraw
+
+    /**
+     * @param {TransformationList} transformationList
+     * @param {function():void} redraw
+     */
+    constructor(transformationList, redraw) {
         this.#transformationList = transformationList;
+        this.#redraw = redraw;
         this.#initUI()
     }
 
@@ -878,12 +1012,12 @@ class UI {
     }
 
     /**
-     * 
-     * @param {function(number):void} onChange 
-     * @param {number} min 
-     * @param {number} max 
-     * @param {number | undefined} def */ 
-    #createNumberInput(onChange, min, max, def = undefined) {
+     *
+     * @param {function(number):void} onChange
+     * @param {number} min
+     * @param {number} max
+     * @param {number | undefined} def */
+    static createNumberInput(onChange, min, max, def = undefined) {
         const input = document.createElement("input");
         input.type = "number";
         input.max = `${max}`;
@@ -904,10 +1038,14 @@ class UI {
 
     #initUI() {
         const container = document.createElement("div");
-        this.#initColorPicket(container);
-        this.#initAlphaInput(container);
-        this.#initTransformationSelector(container);
-        this.#initTransformationButtons(container)
+        const controlContainer = document.createElement("div");
+        const transformationsContainer = document.createElement("div");
+        this.#initColorPicket(controlContainer);
+        this.#initAlphaInput(controlContainer);
+        this.#initTransformationSelector(controlContainer);
+        this.#initTransformationTable(transformationsContainer);
+        container.appendChild(controlContainer);
+        container.appendChild(transformationsContainer);
         document.body.appendChild(container);
     }
 
@@ -915,34 +1053,42 @@ class UI {
      * @param {Element} container
      */
     #initColorPicket(container) {
+        const colorLabel = document.createElement("label");
+        colorLabel.textContent = "Kolor";
         const colorPicker = document.createElement("input");
         colorPicker.type = "color";
         colorPicker.addEventListener("change", (/** @type {Event} */ event) => {
-            const { value } = /** @type {HTMLInputElement} */ (event.target);
+            const {value} = /** @type {HTMLInputElement} */ (event.target);
             const decimalValue = parseInt(value.slice(1), 16);
             const blue = decimalValue & 255;
             const green = (decimalValue >> 8) & 255;
             const red = (decimalValue >> 16) & 255;
             this.#color = new Color(red, green, blue, this.#color?.alpha || 255);
         })
-        container.appendChild(colorPicker)
+        colorLabel.appendChild(colorPicker)
+        container.appendChild(colorLabel);
     }
 
     /**
      * @param {Element} container
      */
     #initAlphaInput(container) {
-        const alphaInput = this.#createNumberInput((value) => {
+        const alphaLabel = document.createElement("label");
+        alphaLabel.textContent = "Alfa";
+        const alphaInput = UI.createNumberInput((value) => {
             const currColor = this.color;
             this.#color = new Color(currColor.red, currColor.green, currColor.blue, value);
         }, 0, 255, this.color.alpha);
-        container.appendChild(alphaInput);
+        alphaLabel.appendChild(alphaInput);
+        container.appendChild(alphaLabel);
     }
 
     /**
      * @param {Element} container
      */
     #initTransformationSelector(container) {
+        const transformationLabel = document.createElement("label");
+        transformationLabel.textContent = "Transformacja";
         const transformactionSelect = document.createElement("select");
         transformactionSelect.append(
             ...["Przesunięcie", "Obrót", "Skalowanie", "Pochylenie"].map(name => {
@@ -955,6 +1101,7 @@ class UI {
 
         const transformationDataFields = document.createElement("div");
         transformationDataFields.style.display = "flex";
+        transformationDataFields.style.flexDirection = "column";
         this.#initTransformationDataFields(transformationDataFields, "Przesunięcie");
 
         transformactionSelect.addEventListener("change", (event) => {
@@ -962,8 +1109,10 @@ class UI {
             transformationDataFields.innerHTML = "";
             this.#initTransformationDataFields(transformationDataFields, target.value);
         });
-        container.appendChild(transformactionSelect);
+        transformationLabel.appendChild(transformactionSelect);
+        container.appendChild(transformationLabel);
         container.appendChild(transformationDataFields);
+        this.#initTransformationButton(container);
         // container.appendChild(alphaInput);
     }
 
@@ -973,23 +1122,23 @@ class UI {
      */
     #initTransformationDataFields(container, transformationName) {
         this.#transformationsArgs.length = 0;
-        switch(transformationName) {
-            case "Przesunięcie": 
+        switch (transformationName) {
+            case "Przesunięcie":
                 this.#TransformationConstructor = ShiftMatrix2D;
                 this.#initShiftOrScaleOrShearTransformationFIelds(container);
-            break;
-            case "Obrót": 
+                break;
+            case "Obrót":
                 this.#TransformationConstructor = RotationMatrix2D;
                 this.#initRotationTransformationFields(container);
-            break;
-            case "Skalowanie": 
+                break;
+            case "Skalowanie":
                 this.#TransformationConstructor = ScaleMatrix2D;
                 this.#initShiftOrScaleOrShearTransformationFIelds(container);
-            break;
-            case "Pochylenie": 
+                break;
+            case "Pochylenie":
                 this.#TransformationConstructor = ShearMatrix2D;
                 this.#initShiftOrScaleOrShearTransformationFIelds(container);
-            break;
+                break;
         }
     }
 
@@ -1000,11 +1149,15 @@ class UI {
         this.#transformationsArgs.push(0, 0);
         const xLabel = document.createElement("label");
         xLabel.textContent = "X";
-        xLabel.appendChild(this.#createNumberInput((val)=>{this.#transformationsArgs[0] = val},Number.MIN_SAFE_INTEGER,Number.MAX_SAFE_INTEGER, 0));
+        xLabel.appendChild(UI.createNumberInput((val) => {
+            this.#transformationsArgs[0] = val
+        }, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 0));
 
         const yLabel = document.createElement("label");
         yLabel.textContent = "Y";
-        yLabel.appendChild(this.#createNumberInput((val)=>{this.#transformationsArgs[1] = val},Number.MIN_SAFE_INTEGER,Number.MAX_SAFE_INTEGER, 0));
+        yLabel.appendChild(UI.createNumberInput((val) => {
+            this.#transformationsArgs[1] = val
+        }, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 0));
 
         container.append(xLabel, yLabel);
     }
@@ -1016,14 +1169,16 @@ class UI {
         this.#transformationsArgs.push(0);
         const degLabel = document.createElement("label");
         degLabel.textContent = "Stopnie";
-        degLabel.appendChild(this.#createNumberInput((val)=>{this.#transformationsArgs[0] = val},0,359, 0));
+        degLabel.appendChild(UI.createNumberInput((val) => {
+            this.#transformationsArgs[0] = val
+        }, 0, 359, 0));
         container.appendChild(degLabel)
     }
 
     /**
      * @param {Element} container
      */
-    #initTransformationButtons(container) {
+    #initTransformationButton(container) {
         const addButton = document.createElement("button");
         addButton.textContent = "Dodaj";
         addButton.onclick = () => {
@@ -1033,6 +1188,67 @@ class UI {
             this.#onListUpdated.forEach(listener => listener());
         }
         container.appendChild(addButton);
+    }
+
+    /**
+     * @param {Element} container
+     */
+    #initTransformationTable(container) {
+        const table = document.createElement("table");
+        table.style.border = "1px solid black";
+        const tableRow = document.createElement("tr");
+        const createHeader = (name) => {
+            const header = document.createElement("th");
+            header.style.border = "1px solid black";
+            header.textContent = name;
+            return header;
+        }
+        tableRow.append(createHeader("Transformacja"), createHeader("Wartości"), createHeader("Argumenty"), createHeader("Kontrola"));
+        table.append(tableRow);
+
+        let index = 0;
+        for (const transformation of this.#transformationList.list) {
+            const row = document.createElement("tr");
+            const name = document.createElement("td");
+            name.style.border = "1px solid black";
+            name.textContent = transformation.constructor.name;
+            row.appendChild(name);
+
+            const values = document.createElement("td");
+            values.style.border = "1px solid black";
+            values.appendChild(transformation.renderMatrix());
+            row.appendChild(values);
+
+            const matrixArguments = document.createElement("td");
+            matrixArguments.style.border = "1px solid black";
+            matrixArguments.appendChild(transformation.renderArguments(()=>{
+                values.innerHTML = "";
+                values.append(transformation.renderMatrix());
+                this.#redraw();
+            }));
+            row.appendChild(matrixArguments);
+            index++;
+            const matrixControl = document.createElement("td");
+            matrixControl.style.border = "1px solid black";
+            const upButton = document.createElement("button");
+            if (index === 0) upButton.disabled = true;
+            upButton.textContent = "^";
+
+            const downButon = document.createElement("button");
+            if (index === this.#transformationList.list.length - 1) upButton.disabled = true;
+            downButon.textContent = "";
+
+            matrixControl.append(upButton, downButon);
+
+            // TODO: finish
+            row.appendChild(matrixControl);
+
+
+            table.append(row);
+        }
+
+
+        container.appendChild(table);
     }
 
     get color() {
@@ -1069,13 +1285,13 @@ class MP4 {
     #ui;
 
     /**
-     * @param {number} width 
-     * @param {number} height 
-     */    
+     * @param {number} width
+     * @param {number} height
+     */
     constructor(width, height) {
         document.body.style.backgroundColor = "#ccc"
 
-        const getOrCreateCanvas = (/** @type {number} */ nth) => document.querySelectorAll("canvas")[nth] || (()=>{
+        const getOrCreateCanvas = (/** @type {number} */ nth) => document.querySelectorAll("canvas")[nth] || (() => {
             const canvas = document.createElement("canvas");
             document.body.appendChild(canvas);
             return canvas;
@@ -1090,21 +1306,23 @@ class MP4 {
             canvas.background(255);
         };
 
-        initCanvas(this.#regulatCanvas);
-        initCanvas(this.#transformedCanvas);
-        this.#ui = new UI(this.#transformationList)
-        this.#ui.addChangeListener(()=>{
+        const redraw = () => {
             this.#images[1].history = this.#images[0].history.copy().transform(this.#transformationList.transformation);
             this.#images[1].redraw();
-        });
+        }
 
-        this.#regulatCanvas.addMouseDraggedListener((e)=> {
+        initCanvas(this.#regulatCanvas);
+        initCanvas(this.#transformedCanvas);
+        this.#ui = new UI(this.#transformationList, redraw.bind(this));
+        this.#ui.addChangeListener(redraw.bind(this));
+
+        this.#regulatCanvas.addMouseDraggedListener((e) => {
             const current = new Vector2D(e.offsetX, e.offsetY);
             this.#images[0].drawVector(current, this.#ui.color);
             this.#images[1].drawVector(current.transform(this.#transformationList.transformation), this.#ui.color);
         });
 
-        this.#regulatCanvas.addMouseUpListener((e)=> {
+        this.#regulatCanvas.addMouseUpListener((e) => {
             this.#images.forEach(image => image.resetLast())
         })
 
@@ -1122,7 +1340,7 @@ class MP4 {
     }
 }
 
-(()=>{
+(() => {
     new MP4(512, 512);
 })();
 
