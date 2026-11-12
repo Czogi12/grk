@@ -159,20 +159,90 @@ class ImageHistoryPoint {
     #last = null
 
     /**
+     * @type {Color}
+     */
+    #color;
+
+    /**
      * @param {Vector2D} vector
+     * @param {Color} color
      * @param {Vector2D | null} last
      */
-    constructor(vector, last = null) {
+    constructor(vector, color, last = null) {
         this.#vector = vector;
         this.#last = last;
+        this.#color = color;
+    }
+
+    /**
+     * 
+     * @param {IdentityMatrix} transformMatrix 
+     * @returns {ImageHistoryPoint}
+     */
+    transform(transformMatrix) {
+        let last = null;
+        if (this.#last) last = this.#last.transform(transformMatrix);
+        return new ImageHistoryPoint(this.#vector.transform(transformMatrix), this.#color, last);
+    }
+
+    copy() {
+        return new ImageHistoryPoint(this.#vector, this.#color, this.#last);
     }
 
     get vector() {
         return this.#vector;
     }
+    
+    get color() {
+        return this.#color
+    }
 
     get last() {
         return this.#last;
+    }
+}
+
+class ImageHistory {
+    /**
+     * @type {ImageHistoryPoint[]}
+     */
+    #history;
+
+    /**
+     * @param {ImageHistoryPoint[]} history
+     */
+    constructor(history = []) {
+        this.#history = history;
+    }
+
+    reset() {
+        this.#history.length = 0;
+    }
+
+    /**
+     * @param {Vector2D} vector
+     * @param {Color} color
+     * @param {Vector2D | null} last
+     */
+    addPoint(vector, color, last = null) {
+        this.#history.push(new ImageHistoryPoint(vector, color, last));
+    }
+
+    /**
+     * 
+     * @param {IdentityMatrix} transformMatrix 
+     * @returns {ImageHistory}
+     */
+    transform(transformMatrix) {
+        return new ImageHistory(this.#history.map(point => point.transform(transformMatrix)));
+    }
+
+    copy() {
+        return new ImageHistory(this.#history.map(p => p.copy()));
+    }
+
+    get list() {
+        return this.#history;
     }
 }
 
@@ -193,19 +263,22 @@ class CanvasImage {
     #last = null;
 
     /**
-     * @type {ImageHistoryPoint[]}
+     * @type {ImageHistory}
      */
-    #history = [];
+    #history = new ImageHistory();
+
+    #bgColor;
 
     /**
      * 
      * @param {number} width 
      * @param {number} height 
-     * @param {Color | undefined } color 
+     * @param {Color | undefined } backgroundColor 
      */
-    constructor(width, height, color = new Color(255, 255, 255)) {
+    constructor(width, height, backgroundColor = new Color(255, 255, 255)) {
         this.#data = new ImageData(width, height);
-        this.fill(color)
+        this.#bgColor = backgroundColor;
+        this.reset();
         // let index = 0;
         // this.#pixels = new Array(width * height).fill(0).map(_ => {
         //     const currentIndex = index++;
@@ -229,19 +302,29 @@ class CanvasImage {
         return this.#data;
     }
 
+    get history() {
+        return this.#history;
+    }
+
+    /**
+     * @param {ImageHistory} history
+     */
+    set history(history) {
+        this.#history = history;
+    }
+
     /**
      * @param {Vector2D} vector
      * @param {Color} color
      */
-    drawVector(vector, color) {
+    drawVector(vector, color, saveHistory = true) {
         if (this.#last) {
             this.#drawLine(this.#last, vector, color)
-            this.#history.push(new ImageHistoryPoint(vector, this.#last));
         } else {
-            this.setPixel(vector.x, vector.y, color)
-            this.#history.push(new ImageHistoryPoint(vector));
+            this.#setPixel(vector.x, vector.y, color)
         }
-        
+        if (saveHistory) this.#history.addPoint(vector, color, this.#last);
+        this.#last = vector;
     }
 
     /**
@@ -249,7 +332,7 @@ class CanvasImage {
      * @param {number} y
      * @param {Color} color
      */
-    setPixel(x, y, color) {
+    #setPixel(x, y, color) {
         x = Math.floor(x);
         y = Math.floor(y);
         const i = (y * this.width + x) * 4;
@@ -258,7 +341,6 @@ class CanvasImage {
         d[i + 1] = color.green;
         d[i + 2] = color.blue;
         d[i + 3] = color.alpha;
-        this.#last = new Vector2D(x, y);
     }
 
     /**
@@ -290,12 +372,25 @@ class CanvasImage {
     let err = dx + dy;
 
         while (true) {
-            this.setPixel(x0, y0, color);
+            this.#setPixel(x0, y0, color);
             if (x0 === x1 && y0 === y1) break;
             const e2 = 2 * err;
             if (e2 >= dy) { err += dy; x0 += sx; }
             if (e2 <= dx) { err += dx; y0 += sy; }
         }
+    }
+
+    redraw() {
+        this.reset();
+        for (const point of this.#history.list) {
+            this.#last = point.last;
+            this.drawVector(point.vector, point.color, false)
+        }
+        this.#last = null;
+    }
+
+    reset() {
+        this.fill(this.#bgColor)
     }
 
     resetLast() {
@@ -510,6 +605,87 @@ class ShearMatrix2D extends IdentityMatrix {
     }
 }
 
+class TransformationList {
+    /**
+     * @type {IdentityMatrix[]}
+     */
+    #list = [];
+
+    /**
+     * @type {IdentityMatrix}
+     */
+    #transformation;
+
+    #dimention;
+
+    /**
+     * 
+     * @param {number} dimention 
+     */
+    constructor(dimention) {
+        this.#dimention = dimention;
+        this.#list.push(new IdentityMatrix(dimention));
+        this.#transformation = this.#list[0];
+    }
+
+    /**
+     * 
+     * @param {IdentityMatrix} transformationMatrix 
+     */
+    addTransformation(transformationMatrix) {
+        if (transformationMatrix.width !== this.#dimention || transformationMatrix.height !== this.#dimention) {
+            throw new Error("TransformationMatrix has incorrect dimentions");
+        }
+        this.#list.push(transformationMatrix);
+        this.#transformation = this.#transformation.multiply(transformationMatrix);
+    }
+
+    /**
+     * 
+     * @param {number} index 
+     */
+    removeTransformation(index) {
+        this.#validateTransformationIndex(index);
+        this.#list.splice(index, 1);
+        this.#recalculateTransformation();
+    }
+
+    /**
+     * @param {number} indexA
+     * @param {number} indexB
+     */
+    swapTransformations(indexA, indexB) {
+        this.#validateTransformationIndex(indexA);
+        this.#validateTransformationIndex(indexB);
+        const tmp = this.#list[indexA];
+        this.#list[indexA] = this.#list[indexB];
+        this.#list[indexB] = tmp;
+        this.#recalculateTransformation();
+    }
+
+    reset() {
+        this.#list.length = 1;
+        this.#transformation = this.#list[0];
+    }
+
+    /**
+     * @param {number} index
+     */
+    #validateTransformationIndex(index) {
+        if (this.#list.length <= index || index < 0) throw new Error("Transformation index out of range");
+    }
+
+    #recalculateTransformation() {
+        this.#transformation = this.#list.reduce((prev, next) => {
+            return prev.multiply(next);
+        }, this.#list[0]);
+    }
+
+    get transformation() {
+        return this.#transformation;
+    }
+}
+
 class Controls {
     static mouseHeld = false;
     static spaceHeld = false;
@@ -664,9 +840,16 @@ class Canvas {
 
 class UI {
     #transformationList;
+
+    /**
+     * @type {(function():void)[]}
+     */
+    #onListUpdated = [];
+
     /**
      * @type {Color | null}
      */
+
     #color = null;
 
     /**
@@ -680,11 +863,18 @@ class UI {
     #TransformationConstructor = IdentityMatrix
 
     /**
-     * @param {Matrix[]} transformationList
+     * @param {TransformationList} transformationList
      */
     constructor(transformationList) {
         this.#transformationList = transformationList;
         this.#initUI()
+    }
+
+    /**
+     * @param {function():void} listener
+     */
+    addChangeListener(listener) {
+        this.#onListUpdated.push(listener)
     }
 
     /**
@@ -835,11 +1025,12 @@ class UI {
      */
     #initTransformationButtons(container) {
         const addButton = document.createElement("button");
-        addButton.textContent = "Dodaj"
+        addButton.textContent = "Dodaj";
         addButton.onclick = () => {
+            console.log(this.#TransformationConstructor)
             //@ts-ignore
-            this.#transformationList.push(new this.#TransformationConstructor(...this.#transformationsArgs));
-            console.log(this.#transformationList)
+            this.#transformationList.addTransformation(new this.#TransformationConstructor(...this.#transformationsArgs));
+            this.#onListUpdated.forEach(listener => listener());
         }
         container.appendChild(addButton);
     }
@@ -867,9 +1058,9 @@ class MP4 {
     ];
 
     /**
-     * @type {Matrix[]}
+     * @type {TransformationList}
      */
-    #transformations = []
+    #transformationList = new TransformationList(3);
 
 
     /**
@@ -901,12 +1092,16 @@ class MP4 {
 
         initCanvas(this.#regulatCanvas);
         initCanvas(this.#transformedCanvas);
-        this.#ui = new UI(this.#transformations)
+        this.#ui = new UI(this.#transformationList)
+        this.#ui.addChangeListener(()=>{
+            this.#images[1].history = this.#images[0].history.copy().transform(this.#transformationList.transformation);
+            this.#images[1].redraw();
+        });
 
         this.#regulatCanvas.addMouseDraggedListener((e)=> {
             const current = new Vector2D(e.offsetX, e.offsetY);
             this.#images[0].drawVector(current, this.#ui.color);
-            this.#images[1].drawVector(current.transform(this.#transformations.reduce((prev, next)=>prev.multiply(next), new IdentityMatrix(3))), this.#ui.color);
+            this.#images[1].drawVector(current.transform(this.#transformationList.transformation), this.#ui.color);
         });
 
         this.#regulatCanvas.addMouseUpListener((e)=> {
